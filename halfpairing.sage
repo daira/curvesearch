@@ -17,9 +17,9 @@ def low_hamming_order(l):
 
 def find_bn_primes(L):
     # If u = 2^l, then p ~ 36 * 2^4l.
-    # Therefore we want l ~ (L - lg(36))/4.
+    # Therefore we want l ~ (L - 6)/4.
 
-    l = int(ceil((L - log(36)/log(2))/4))
+    l = int(ceil((L - 6)/4.0))
     for u in low_hamming_order(l):
         p = 36*u^4 + 36*u^3 + 18*u^2 + 6*u + 1
         if is_pseudoprime(p):
@@ -58,4 +58,8 @@ def find_cycles(L):
             print("E1/Fp : y^2 = x^3 + %d" % b1)
         print("")
 
-find_cycles(400)
+
+if len(sys.argv) <= 1:
+    print("Usage: sage halfpairing.sage <minbitlength>\n")
+else:
+    find_cycles(int(sys.argv[1]))
