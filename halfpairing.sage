@@ -37,6 +37,7 @@ def find_nice_curve(p, q):
         E = EllipticCurve(GF(p), [0, b])
         if E.count_points() == q:
             return b
+    return None
 
 def format_weight(x):
     X = format(x, 'b')
@@ -50,8 +51,11 @@ def find_cycles(L):
         print("u = %s" % format_weight(u))
         b1 = find_nice_curve(p, q)
         b0 = find_nice_curve(q, p)
-        print("E0/Fq : y^2 = x^3 + %d" % b0)
-        print("E1/Fp : y^2 = x^3 + %d" % b1)
+        if b0 is None or b1 is None:
+            print("No parameters found!")
+        else:
+            print("E0/Fq : y^2 = x^3 + %d" % b0)
+            print("E1/Fp : y^2 = x^3 + %d" % b1)
         print("")
 
 find_cycles(400)
