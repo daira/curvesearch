@@ -27,13 +27,8 @@ def find_bn_primes(L):
             if is_prime(q) and is_prime(p):
                 yield (p, q, u)
 
-def symmetric_range():
-    for b in xrange(1, 10000):
-        yield b
-        yield -b
-
 def find_nice_curve(p, q):
-    for b in symmetric_range():
+    for b in range(1, 10000):
         E = EllipticCurve(GF(p), [0, b])
         if E.count_points() == q:
             return b
