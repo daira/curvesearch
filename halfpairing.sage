@@ -11,7 +11,7 @@ TWOADICITY = 20
 
 def low_hamming_order(l):
     base = 1 << l
-    for w in xrange(l+1):
+    for w in xrange(l-3-TWOADICITY+1):
         for c in combinations(xrange(TWOADICITY, l-3), w):
             yield base + sum([1 << i for i in c])
 
