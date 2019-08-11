@@ -2,6 +2,7 @@
 
 from operator import add
 from itertools import chain
+from functools import reduce
 
 # Everything here is little-endian.
 
@@ -26,13 +27,13 @@ def valid_limbs(limbs):
 # If all bits were 1, would the reduction fit?
 def verify():
     # Compute 2^i mod p, as normalized limbs, for all relevant bit positions.
-    indices = sum([range(PRODUCT_OFFSETS[i], PRODUCT_OFFSETS[i]+PRODUCT_WIDTHS[i])
+    indices = sum([list(range(PRODUCT_OFFSETS[i], PRODUCT_OFFSETS[i]+PRODUCT_WIDTHS[i]))
                    for i in range(len(PRODUCT_OFFSETS))], [])
 
     twoi_modp = [to_limbs(2**i % p) for i in indices]
 
     # Add them elementwise.
-    worst_case = reduce(lambda x, y: map(add, x, y), twoi_modp)
+    worst_case = list(reduce(lambda x, y: map(add, x, y), twoi_modp))
     assert(len(worst_case) == len(OFFSETS))
 
     print(worst_case)
