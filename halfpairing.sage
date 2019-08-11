@@ -1,5 +1,4 @@
-from math import log, floor, ceil
-from random import randint
+from math import ceil
 from itertools import combinations
 
 # Let E0/Fq : y^2 = x^3 + b0
