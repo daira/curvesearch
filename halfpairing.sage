@@ -15,7 +15,9 @@ def low_hamming_order(l, twoadicity):
     trailing_zeros = twoadicity-1
     for w in xrange(l-trailing_zeros+1):
         for c in combinations(xrange(trailing_zeros, l), w):
-            yield base + sum([1 << i for i in c])
+            u = base + sum([1 << i for i in c])
+            yield u
+            yield -u
 
 def find_bn_primes(L, twoadicity):
     # If u = 2^l, then p ~ 36 * 2^4l.
@@ -42,8 +44,8 @@ def find_lowest_prime(p):
             return r
 
 def format_weight(x):
-    X = format(x, 'b')
-    return "0b%s (weight %d)" % (X, sum([int(c) for c in X]))
+    X = format(abs(x), 'b')
+    return "%s0b%s (weight %d)" % ("-" if x < 0 else "", X, sum([int(c) for c in X]))
 
 def find_cycles(L, twoadicity):
     for (p, q, u) in find_bn_primes(L, twoadicity):
