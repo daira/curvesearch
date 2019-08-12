@@ -1,3 +1,4 @@
+import sys
 from math import ceil
 from itertools import combinations
 
@@ -6,20 +7,22 @@ from itertools import combinations
 
 # p and q should each be ~ L bits.
 
-TWOADICITY = 20
+DEFAULT_TWOADICITY = 21
 
-def low_hamming_order(l):
+def low_hamming_order(l, twoadicity):
     base = 1 << l
-    for w in xrange(l-3-TWOADICITY+1):
-        for c in combinations(xrange(TWOADICITY, l-3), w):
+    # p-1 is a multiple of 6u, so will have one more trailing zero than u.
+    trailing_zeros = twoadicity-1
+    for w in xrange(l-trailing_zeros+1):
+        for c in combinations(xrange(trailing_zeros, l), w):
             yield base + sum([1 << i for i in c])
 
-def find_bn_primes(L):
+def find_bn_primes(L, twoadicity):
     # If u = 2^l, then p ~ 36 * 2^4l.
     # Therefore we want l ~ (L - 6)/4.
 
     l = int(ceil((L - 6)/4.0))
-    for u in low_hamming_order(l):
+    for u in low_hamming_order(l, twoadicity):
         p = 36*u^4 + 36*u^3 + 18*u^2 + 6*u + 1
         if is_pseudoprime(p):
             q = p + 6*u^2
@@ -42,8 +45,8 @@ def format_weight(x):
     X = format(x, 'b')
     return "0b%s (weight %d)" % (X, sum([int(c) for c in X]))
 
-def find_cycles(L):
-    for (p, q, u) in find_bn_primes(L):
+def find_cycles(L, twoadicity):
+    for (p, q, u) in find_bn_primes(L, twoadicity):
         print("bitlength %d" % len(format(p, 'b')))
         print("p = %s" % format_weight(p))
         print("q = %s" % format_weight(q))
@@ -63,6 +66,6 @@ def find_cycles(L):
 
 
 if len(sys.argv) <= 1:
-    print("Usage: sage halfpairing.sage <minbitlength>\n")
+    print("Usage: sage halfpairing.sage <min-bitlength> [<min-2adicity>]\n")
 else:
-    find_cycles(int(sys.argv[1]))
+    find_cycles(int(sys.argv[1]), int(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_TWOADICITY)
