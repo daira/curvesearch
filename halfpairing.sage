@@ -8,6 +8,7 @@ from itertools import combinations
 # p and q should each be ~ L bits.
 
 DEFAULT_TWOADICITY = 21
+ALLOW_NEGATIVE_U = True
 
 def low_hamming_order(l, twoadicity):
     base = 1 << l
@@ -17,7 +18,8 @@ def low_hamming_order(l, twoadicity):
         for c in combinations(xrange(trailing_zeros, l), w):
             u = base + sum([1 << i for i in c])
             yield u
-            yield -u
+            if ALLOW_NEGATIVE_U:
+                yield -u
 
 def find_bn_primes(L, twoadicity):
     # If u = 2^l, then p ~ 36 * 2^4l.
