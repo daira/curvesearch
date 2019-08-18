@@ -107,6 +107,6 @@ def find_cycles(L, twoadicity):
 
 
 if len(sys.argv) <= 1:
-    print("Usage: sage halfpairing.sage <min-bitlength> [<min-2adicity>]\n")
+    print("Usage: sage amicable.sage <min-bitlength> [<min-2adicity>]\n")
 else:
     find_cycles(int(sys.argv[1]), int(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_TWOADICITY)
