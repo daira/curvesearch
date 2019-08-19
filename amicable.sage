@@ -29,6 +29,11 @@ DEFAULT_TWOADICITY = 21
 #       p = 3((V-1)/2)^2 + 3(V-1)/2 + ((t-1)/2)^2 + (t-1)/2 + 1
 #
 # So p-1 will be a multiple of 2^twoadicity, and so will (p+1-t)-1 = (p-1)-(t-1).
+#
+# We'd also like both p and q to be 1 (mod 3), so that we have efficient endomorphisms
+# on both curves. We explicitly check p = 1 (mod 3), and then if t is chosen to be a
+# multiple of 3 then (p-1)-(t-1) will be 1 (mod 3) (but we must still check q since it
+# is not necessarily that order).
 
 def low_hamming_order(l, twoadicity):
     Vlen = l//2 + 1
@@ -44,10 +49,12 @@ def low_hamming_order(l, twoadicity):
                             combinations(xrange(trailing_zeros, tlen), w+1)):
                 t = tbase + sum([1 << i for i in tc]) + 1
                 assert(((t-1)/2) % (1<<twoadicity) == 0)
+                if t % 3 != 1:
+                    continue
                 p4 = 3*V^2 + t^2
                 assert(p4 % 4 == 0)
                 p = p4//4
-                assert((p-1) % (1<<twoadicity) == 0)
+                assert(p % (1<<twoadicity) == 1)
                 if p % 3 == 1 and is_prime(p):
                     sys.stdout.write('.')
                     sys.stdout.flush()
@@ -56,7 +63,7 @@ def low_hamming_order(l, twoadicity):
 def find_nonsquare_noncube(p):
     for g_int in range(2, 100):
         g = Mod(g_int, p)
-        if g^((p-1)/3) != 1 and g^((p-1)/2) != 1:
+        if g^((p-1)//3) != 1 and g^((p-1)//2) != 1:
             return g
     return None
 
@@ -69,7 +76,7 @@ def find_nice_curves(L, twoadicity):
             b1 = g^i
             E1 = EllipticCurve(GF(p), [0, b1])
             q = E1.count_points()
-            if (q-1) % (1<<twoadicity) == 0 and is_prime(q):
+            if q % (1<<twoadicity) == 1 and q % 3 == 1 and is_prime(q):
                 b1 = find_coefficient(p, q)
                 if b1 is not None:
                     b0 = find_coefficient(q, p)
