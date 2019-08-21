@@ -1,6 +1,6 @@
 import sys
 from math import ceil
-from itertools import combinations, chain
+from itertools import combinations
 
 # Let E0/Fq : y^2 = x^3 + b0
 # Let E1/Fp : y^2 = x^3 + b1
@@ -8,6 +8,7 @@ from itertools import combinations, chain
 # p and q should each be ~ L bits.
 
 DEFAULT_TWOADICITY = 21
+DEFAULT_STRETCH = 0
 
 # It is well known that if g is neither a square nor a cube in Fp, then all
 # possible group orders an elliptic curve E : y^2 = x^3 + b can have over Fp
@@ -45,34 +46,35 @@ def low_hamming_order(l, twoadicity):
         for Vc in combinations(xrange(trailing_zeros, Vlen), w):
             V = Vbase + sum([1 << i for i in Vc]) + 1
             assert(((V-1)/2) % (1<<twoadicity) == 0)
-            for tc in chain(combinations(xrange(trailing_zeros, tlen), w),
-                            combinations(xrange(trailing_zeros, tlen), w+1)):
-                t = tbase + sum([1 << i for i in tc]) + 1
-                assert(((t-1)/2) % (1<<twoadicity) == 0)
-                if t % 3 != 1:
-                    continue
-                p4 = 3*V^2 + t^2
-                assert(p4 % 4 == 0)
-                p = p4//4
-                assert(p % (1<<twoadicity) == 1)
-                if p % 3 == 1 and is_prime(p):
-                    sys.stdout.write('.')
-                    sys.stdout.flush()
-                    yield p
+            for tw in xrange(1, w+1):
+                for tc in combinations(xrange(trailing_zeros, tlen), tw):
+                    t = tbase + sum([1 << i for i in tc]) + 1
+                    assert(((t-1)/2) % (1<<twoadicity) == 0)
+                    if t % 3 != 1:
+                        continue
+                    p4 = 3*V^2 + t^2
+                    assert(p4 % 4 == 0)
+                    p = p4//4
+                    assert(p % (1<<twoadicity) == 1)
+                    if p % 3 == 1 and is_prime(p):
+                        sys.stdout.write('.')
+                        sys.stdout.flush()
+                        yield p
 
 def find_nonsquare_noncube(p):
-    for g_int in range(2, 100):
+    for g_int in xrange(2, 100):
         g = Mod(g_int, p)
         if g^((p-1)//3) != 1 and g^((p-1)//2) != 1:
             return g
     return None
 
-def find_nice_curves(L, twoadicity):
-    for p in low_hamming_order(L-1, twoadicity):
+def find_nice_curves(L, twoadicity, stretch):
+    for p in low_hamming_order(L-1, max(0, twoadicity-stretch)):
+        if p % (1<<twoadicity) != 1: continue
         g = find_nonsquare_noncube(p)
         if g is None: continue
 
-        for i in range(6):
+        for i in xrange(6):
             b1 = g^i
             E1 = EllipticCurve(GF(p), [0, b1])
             q = E1.count_points()
@@ -81,10 +83,10 @@ def find_nice_curves(L, twoadicity):
                 if b1 is not None:
                     b0 = find_coefficient(q, p)
                     if b0 is not None:
-                        yield (p, q, b1, b0)
+                        yield (p, q, b1, b0, g)
 
 def find_coefficient(p, q):
-    for b in range(1, 10000):
+    for b in xrange(1, 10000):
         E = EllipticCurve(GF(p), [0, b])
         if E.count_points() == q:
             return b
@@ -95,16 +97,24 @@ def find_lowest_prime(p):
         if gcd(p-1, r) == 1:
             return r
 
-def format_weight(x):
+def format_weight(x, detail=True):
     X = format(abs(x), 'b')
-    return "%s0b%s (weight %d)" % ("-" if x < 0 else "", X, sum([int(c) for c in X]))
+    if detail:
+        assert(X.endswith('1'))
+        detailstr = " (weight %d, 2-adicity %d)" % (sum([int(c) for c in X]), len(X) - len(X[:-1].rstrip('0')))
+    else:
+        detailstr = ""
 
-def find_cycles(L, twoadicity):
-    for (p, q, b1, b0) in find_nice_curves(L, twoadicity):
+    return "%s0b%s%s" % ("-" if x < 0 else "", X, detailstr)
+
+def find_cycles(L, twoadicity, stretch):
+    for (p, q, b1, b0, g) in find_nice_curves(L, twoadicity, stretch):
         print("")
         print("bitlength %d" % len(format(p, 'b')))
         print("p = %s" % format_weight(p))
         print("q = %s" % format_weight(q))
+        print("g = %s" % format_weight(int(g), detail=False))
+        print("beta = %s" % format_weight(int(g^((p-1)//3)), detail=False))
 
         print("E0/Fq : y^2 = x^3 + %d" % b0)
         print("E1/Fp : y^2 = x^3 + %d" % b1)
@@ -114,6 +124,8 @@ def find_cycles(L, twoadicity):
 
 
 if len(sys.argv) <= 1:
-    print("Usage: sage amicable.sage <min-bitlength> [<min-2adicity>]\n")
+    print("Usage: sage amicable.sage <min-bitlength> [<min-2adicity> [<stretch]]\n")
 else:
-    find_cycles(int(sys.argv[1]), int(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_TWOADICITY)
+    find_cycles(int(sys.argv[1]),
+                int(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_TWOADICITY,
+                int(sys.argv[3]) if len(sys.argv) > 3 else DEFAULT_STRETCH)
