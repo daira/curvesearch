@@ -36,10 +36,10 @@ DEFAULT_STRETCH = 0
 # multiple of 3 then (p-1)-(t-1) will be 1 (mod 3) (but we must still check q since it
 # is not necessarily that order).
 
-def low_hamming_order(l, twoadicity):
-    Vlen = l//2 + 1
+def low_hamming_order(L, twoadicity):
+    Vlen = (L-1)//2 + 1
     Vbase = 1 << Vlen
-    tlen = l//4
+    tlen = (L-1)//4
     tbase = 1 << tlen
     trailing_zeros = twoadicity+1
     for w in xrange(tlen-trailing_zeros):
@@ -57,9 +57,28 @@ def low_hamming_order(l, twoadicity):
                     p = p4//4
                     assert(p % (1<<twoadicity) == 1)
                     if p % 3 == 1 and is_prime(p):
-                        sys.stdout.write('.')
-                        sys.stdout.flush()
                         yield p
+
+def near_powerof2_order(L, twoadicity):
+    trailing_zeros = twoadicity+1
+    Vbase = isqrt((1<<(L+2))//3) >> trailing_zeros
+    for Voffset in symmetric_range(10000):
+        V = ((Vbase + Voffset) << trailing_zeros) + 1
+        assert(((V-1)/2) % (1 << twoadicity) == 0)
+        tmp = (1<<(L+2)) - 3*V^2
+        if tmp < 0: continue
+        tbase = isqrt(tmp) >> trailing_zeros
+        for toffset in symmetric_range(10000):
+            t = ((tbase + toffset) << trailing_zeros) + 1
+            assert(((t-1)/2) % (1<<twoadicity) == 0)
+            if t % 3 != 1:
+                continue
+            p4 = 3*V^2 + t^2
+            assert(p4 % 4 == 0)
+            p = p4//4
+            assert(p % (1<<twoadicity) == 1)
+            if p % 3 == 1 and is_prime(p):
+                yield p
 
 def find_nonsquare_noncube(p):
     for g_int in xrange(2, 100):
@@ -68,8 +87,15 @@ def find_nonsquare_noncube(p):
             return g
     return None
 
-def find_nice_curves(L, twoadicity, stretch):
-    for p in low_hamming_order(L-1, max(0, twoadicity-stretch)):
+def symmetric_range(n):
+    for i in xrange(n):
+        yield -i
+        yield i+1
+
+def find_nice_curves(strategy, L, twoadicity, stretch):
+    for p in strategy(L, max(0, twoadicity-stretch)):
+        sys.stdout.write('.')
+        sys.stdout.flush()
         if p % (1<<twoadicity) != 1: continue
         g = find_nonsquare_noncube(p)
         if g is None: continue
@@ -107,8 +133,8 @@ def format_weight(x, detail=True):
 
     return "%s0b%s%s" % ("-" if x < 0 else "", X, detailstr)
 
-def find_cycles(L, twoadicity, stretch):
-    for (p, q, b1, b0, g) in find_nice_curves(L, twoadicity, stretch):
+def find_and_print(strategy, L, twoadicity, stretch):
+    for (p, q, b1, b0, g) in find_nice_curves(strategy, L, twoadicity, stretch):
         print("")
         print("bitlength %d" % len(format(p, 'b')))
         print("p = %s" % format_weight(p))
@@ -123,9 +149,13 @@ def find_cycles(L, twoadicity, stretch):
         print("gcd(q-1, %d) = 1" % find_lowest_prime(q))
 
 
-if len(sys.argv) <= 1:
-    print("Usage: sage amicable.sage <min-bitlength> [<min-2adicity> [<stretch]]\n")
+strategy = near_powerof2_order if "--nearpowerof2" in sys.argv[1:] else low_hamming_order
+args = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
+
+if len(args) < 1:
+    print("Usage: sage amicable.sage [--nearpowerof2] <min-bitlength> [<min-2adicity> [<stretch]]\n")
 else:
-    find_cycles(int(sys.argv[1]),
-                int(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_TWOADICITY,
-                int(sys.argv[3]) if len(sys.argv) > 3 else DEFAULT_STRETCH)
+    find_and_print(strategy,
+                   int(args[0]),
+                   int(args[1]) if len(args) > 1 else DEFAULT_TWOADICITY,
+                   int(args[2]) if len(args) > 2 else DEFAULT_STRETCH)
