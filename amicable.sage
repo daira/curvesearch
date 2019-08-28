@@ -142,8 +142,8 @@ def find_and_print(strategy, L, twoadicity, stretch):
         print("g = %s" % format_weight(int(g), detail=False))
         print("beta = %s" % format_weight(int(g^((p-1)//3)), detail=False))
 
-        print("E0/Fq : y^2 = x^3 + %d" % b0)
-        print("E1/Fp : y^2 = x^3 + %d" % b1)
+        print("E0/Fq : y^2 = x^3 + %d (%ssquare)" % (b0, "" if Mod(b0, q).is_square() else "non"))
+        print("E1/Fp : y^2 = x^3 + %d (%ssquare)" % (b1, "" if Mod(b1, p).is_square() else "non"))
 
         print("gcd(p-1, %d) = 1" % find_lowest_prime(p))
         print("gcd(q-1, %d) = 1" % find_lowest_prime(q))
