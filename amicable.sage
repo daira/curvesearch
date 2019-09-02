@@ -97,11 +97,11 @@ def find_nice_curves(strategy, L, twoadicity, stretch):
         sys.stdout.write('.')
         sys.stdout.flush()
         if p % (1<<twoadicity) != 1: continue
-        g = find_nonsquare_noncube(p)
-        if g is None: continue
+        gp = find_nonsquare_noncube(p)
+        if gp is None: continue
 
         for i in xrange(6):
-            b1 = g^i
+            b1 = gp^i
             E1 = EllipticCurve(GF(p), [0, b1])
             q = E1.count_points()
             if q % (1<<twoadicity) == 1 and q % 3 == 1 and is_prime(q):
@@ -109,7 +109,12 @@ def find_nice_curves(strategy, L, twoadicity, stretch):
                 if b1 is not None:
                     b0 = find_coefficient(q, p)
                     if b0 is not None:
-                        yield (p, q, b1, b0, g)
+                        gq = find_nonsquare_noncube(q)
+                        alpha = gq^((q-1)//3)
+                        assert(alpha^3 == Mod(1, q))
+                        beta  = gp^((p-1)//3)
+                        assert(beta^3  == Mod(1, p))
+                        yield (p, q, b1, b0, alpha, beta)
 
 def find_coefficient(p, q):
     for b in xrange(1, 10000):
@@ -134,13 +139,13 @@ def format_weight(x, detail=True):
     return "%s0b%s%s" % ("-" if x < 0 else "", X, detailstr)
 
 def find_and_print(strategy, L, twoadicity, stretch):
-    for (p, q, b1, b0, g) in find_nice_curves(strategy, L, twoadicity, stretch):
+    for (p, q, b1, b0, alpha, beta) in find_nice_curves(strategy, L, twoadicity, stretch):
         print("")
         print("bitlength %d" % len(format(p, 'b')))
         print("p = %s" % format_weight(p))
         print("q = %s" % format_weight(q))
-        print("g = %s" % format_weight(int(g), detail=False))
-        print("beta = %s" % format_weight(int(g^((p-1)//3)), detail=False))
+        print("alpha = %s (mod q)" % format_weight(int(alpha), detail=False))
+        print("beta  = %s (mod p)" % format_weight(int(beta),  detail=False))
 
         print("E0/Fq : y^2 = x^3 + %d (%ssquare)" % (b0, "" if Mod(b0, q).is_square() else "non"))
         print("E1/Fp : y^2 = x^3 + %d (%ssquare)" % (b1, "" if Mod(b1, p).is_square() else "non"))
