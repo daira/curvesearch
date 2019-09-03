@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 import sys
+from multiprocessing import Pool, cpu_count
+from traceback import print_exc
 from math import ceil
 from itertools import combinations
+
+PROCESSES = None  # auto-detect
 
 # Let Ep/Fp : y^2 = x^3 + bp
 # Let Eq/Fq : y^2 = x^3 + bq
@@ -37,13 +41,13 @@ DEFAULT_STRETCH = 0
 # multiple of 3 then (p-1)-(t-1) will be 1 (mod 3) (but we must still check q since it
 # is not necessarily that order).
 
-def low_hamming_order(L, twoadicity):
+def low_hamming_order(L, twoadicity, wid, processes):
     Vlen = (L-1)//2 + 1
     Vbase = 1 << Vlen
     tlen = (L-1)//4
     tbase = 1 << tlen
     trailing_zeros = twoadicity+1
-    for w in xrange(tlen-trailing_zeros):
+    for w in xrange(wid, tlen-trailing_zeros, processes):
         for Vc in combinations(xrange(trailing_zeros, Vlen), w):
             V = Vbase + sum([1 << i for i in Vc]) + 1
             assert(((V-1)/2) % (1<<twoadicity) == 0)
@@ -60,10 +64,10 @@ def low_hamming_order(L, twoadicity):
                     if p % 3 == 1 and is_prime(p):
                         yield p
 
-def near_powerof2_order(L, twoadicity):
+def near_powerof2_order(L, twoadicity, wid, processes):
     trailing_zeros = twoadicity+1
     Vbase = isqrt((1<<(L+2))//3) >> trailing_zeros
-    for Voffset in symmetric_range(10000):
+    for Voffset in symmetric_range(10000, base=wid, step=processes):
         V = ((Vbase + Voffset) << trailing_zeros) + 1
         assert(((V-1)/2) % (1 << twoadicity) == 0)
         tmp = (1<<(L+2)) - 3*V^2
@@ -88,13 +92,13 @@ def find_nonsquare_noncube(p):
             return g
     return None
 
-def symmetric_range(n):
-    for i in xrange(n):
+def symmetric_range(n, base=0, step=1):
+    for i in xrange(base, n, step):
         yield -i
         yield i+1
 
-def find_nice_curves(strategy, L, twoadicity, stretch):
-    for p in strategy(L, max(0, twoadicity-stretch)):
+def find_nice_curves(strategy, L, twoadicity, stretch, wid, processes):
+    for p in strategy(L, max(0, twoadicity-stretch), wid, processes):
         sys.stdout.write('.')
         sys.stdout.flush()
         if p % (1<<twoadicity) != 1: continue
@@ -140,28 +144,56 @@ def format_weight(x, detail=True):
 
     return "%s0b%s%s" % ("-" if x < 0 else "", X, detailstr)
 
-def find_and_print(strategy, L, twoadicity, stretch):
-    for (p, q, bp, bq, ap, aq) in find_nice_curves(strategy, L, twoadicity, stretch):
-        print("")
-        print("p   = %s" % format_weight(p))
-        print("q   = %s" % format_weight(q))
-        print("α_p = %s (mod p)" % format_weight(int(ap), detail=False))
-        print("α_q = %s (mod q)" % format_weight(int(aq), detail=False))
 
-        print("Ep/Fp : y^2 = x^3 + %d (%ssquare)" % (bp, "" if Mod(bp, p).is_square() else "non"))
-        print("Eq/Fq : y^2 = x^3 + %d (%ssquare)" % (bq, "" if Mod(bq, q).is_square() else "non"))
+def main():
+    strategy = near_powerof2_order if "--nearpowerof2" in sys.argv[1:] else low_hamming_order
+    args = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
 
-        print("gcd(p-1, %d) = 1" % find_lowest_prime(p))
-        print("gcd(q-1, %d) = 1" % find_lowest_prime(q))
+    if len(args) < 1:
+        print("Usage: sage amicable.sage [--nearpowerof2] <min-bitlength> [<min-2adicity> [<stretch]]\n")
+        return
 
+    L          = int(args[0])
+    twoadicity = int(args[1]) if len(args) > 1 else DEFAULT_TWOADICITY
+    stretch    = int(args[2]) if len(args) > 2 else DEFAULT_STRETCH
 
-strategy = near_powerof2_order if "--nearpowerof2" in sys.argv[1:] else low_hamming_order
-args = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
+    processes = PROCESSES or cpu_count()
+    print("Using %d processes." % (processes,))
+    pool = Pool(processes=processes)
 
-if len(args) < 1:
-    print("Usage: sage amicable.sage [--nearpowerof2] <min-bitlength> [<min-2adicity> [<stretch]]\n")
-else:
-    find_and_print(strategy,
-                   int(args[0]),
-                   int(args[1]) if len(args) > 1 else DEFAULT_TWOADICITY,
-                   int(args[2]) if len(args) > 2 else DEFAULT_STRETCH)
+    try:
+        for wid in xrange(processes):
+            pool.apply_async(worker, (strategy, L, twoadicity, stretch, wid, processes))
+
+        while True:
+            sleep(1000)
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
+        pool.terminate()
+
+def worker(*args):
+    try:
+        real_worker(*args)
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    except:
+        print_exc()
+
+def real_worker(*args):
+    for (p, q, bp, bq, ap, aq) in find_nice_curves(*args):
+        output  = "\n"
+        output += "p   = %s\n" % format_weight(p)
+        output += "q   = %s\n" % format_weight(q)
+        output += "α_p = %s (mod p)\n" % format_weight(int(ap), detail=False)
+        output += "α_q = %s (mod q)\n" % format_weight(int(aq), detail=False)
+
+        output += "Ep/Fp : y^2 = x^3 + %d (%ssquare)\n" % (bp, "" if Mod(bp, p).is_square() else "non")
+        output += "Eq/Fq : y^2 = x^3 + %d (%ssquare)\n" % (bq, "" if Mod(bq, q).is_square() else "non")
+
+        output += "gcd(p-1, %d) = 1\n" % find_lowest_prime(p)
+        output += "gcd(q-1, %d) = 1\n" % find_lowest_prime(q)
+
+        print(output)  # one syscall to minimize tearing
+
+main()
