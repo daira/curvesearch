@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys
 from math import ceil
 from itertools import combinations
@@ -132,16 +133,16 @@ def format_weight(x, detail=True):
     X = format(abs(x), 'b')
     if detail:
         assert(X.endswith('1'))
-        detailstr = " (weight %d, 2-adicity %d)" % (sum([int(c) for c in X]), len(X) - len(X[:-1].rstrip('0')))
+        detailstr = " (bitlength %d, weight %d, 2-adicity %d)" % (len(X), sum([int(c) for c in X]),
+                                                                  len(X) - len(X[:-1].rstrip('0')))
     else:
-        detailstr = ""
+        detailstr = " (bitlength %d)" % (len(X),)
 
     return "%s0b%s%s" % ("-" if x < 0 else "", X, detailstr)
 
 def find_and_print(strategy, L, twoadicity, stretch):
     for (p, q, bp, bq, ap, aq) in find_nice_curves(strategy, L, twoadicity, stretch):
         print("")
-        print("bitlength %d" % len(format(p, 'b')))
         print("p   = %s" % format_weight(p))
         print("q   = %s" % format_weight(q))
         print("α_p = %s (mod p)" % format_weight(int(ap), detail=False))
