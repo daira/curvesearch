@@ -15,6 +15,7 @@ PROCESSES = None  # auto-detect
 DEFAULT_TWOADICITY = 21
 DEFAULT_STRETCH = 0
 
+# <https://eprint.iacr.org/2011/465.pdf>
 # It is well known that if g is neither a square nor a cube in Fp, then all
 # possible group orders an elliptic curve E : y^2 = x^3 + b can have over Fp
 # occur as the order of one of the 6 twists with b \in {1, g, g^2, g^3, g^4, g^5}.
@@ -37,8 +38,8 @@ DEFAULT_STRETCH = 0
 # So p-1 will be a multiple of 2^twoadicity, and so will (p+1-t)-1 = (p-1)-(t-1).
 #
 # We'd also like both p and q to be 1 (mod 3), so that we have efficient endomorphisms
-# on both curves. We explicitly check p = 1 (mod 3), and then if t is chosen to be a
-# multiple of 3 then (p-1)-(t-1) will be 1 (mod 3) (but we must still check q since it
+# on both curves. We explicitly check p = 1 (mod 3), and then if t is chosen to be
+# 1 (mod 3) then p+1-t will be 1 (mod 3) (but we must still check q since it
 # is not necessarily that order).
 
 def low_hamming_order(L, twoadicity, wid, processes):
