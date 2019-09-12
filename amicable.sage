@@ -56,13 +56,13 @@ def low_hamming_order(L, twoadicity, wid, processes):
                 for tc in combinations(xrange(trailing_zeros, tlen), tw):
                     t = tbase + sum([1 << i for i in tc]) + 1
                     assert(((t-1)/2) % (1<<twoadicity) == 0)
-                    if t % 3 != 1:
+                    if t % 6 != 1:
                         continue
                     p4 = 3*V^2 + t^2
                     assert(p4 % 4 == 0)
                     p = p4//4
                     assert(p % (1<<twoadicity) == 1)
-                    if p % 3 == 1 and is_prime(p):
+                    if p % 6 == 1 and is_prime(p):
                         yield p
 
 def near_powerof2_order(L, twoadicity, wid, processes):
@@ -77,13 +77,13 @@ def near_powerof2_order(L, twoadicity, wid, processes):
         for toffset in symmetric_range(10000):
             t = ((tbase + toffset) << trailing_zeros) + 1
             assert(((t-1)/2) % (1<<twoadicity) == 0)
-            if t % 3 != 1:
+            if t % 6 != 1:
                 continue
             p4 = 3*V^2 + t^2
             assert(p4 % 4 == 0)
             p = p4//4
             assert(p % (1<<twoadicity) == 1)
-            if p % 3 == 1 and is_prime(p):
+            if p % 6 == 1 and is_prime(p):
                 yield p
 
 def find_nonsquare_noncube(p):
@@ -110,7 +110,7 @@ def find_nice_curves(strategy, L, twoadicity, stretch, wid, processes):
             bp = gp^i
             Ep = EllipticCurve(GF(p), [0, bp])
             q = Ep.count_points()
-            if q % (1<<twoadicity) == 1 and q % 3 == 1 and is_prime(q):
+            if q % (1<<twoadicity) == 1 and q % 6 == 1 and is_prime(q):
                 bp = find_coefficient(p, q)
                 if bp is not None:
                     bq = find_coefficient(q, p)
