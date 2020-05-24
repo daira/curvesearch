@@ -17,7 +17,7 @@ DEFAULT_TWOADICITY = 32
 class BruteForce:
     def __init__(self, L, twoadicity):
         j = (twoadicity+1)//2
-        threeadicity = ceil(twoadicity*log(2, 3))
+        threeadicity = int(ceil(twoadicity*log(2, 3)))
 
         # Let x = 2^j.A.X.
         #
@@ -84,8 +84,7 @@ def find_cycle(q, pow2, pow3):
         assert((r - (r+1))^2 < 4*q)
         t = q + 1 - r
         #print("\nq = %s, r = %s, trace = %s, r = %d (mod 126)" % (format_int(q, 2), format_int(r, 3), format_int(t), int(r)%126))
-        #if r % pow3 == 1 and:
-        if is_pseudoprime(r):
+        if r % pow3 == 1 and is_pseudoprime(r):
             #print("\n%4d: %s (%d, %d, %2d (mod 126))" % (bq, format_int(r), int(q).bit_length(), int(r).bit_length(), int(r)%126))
             sys.stdout.write('#')
             sys.stdout.flush()
