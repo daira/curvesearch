@@ -98,7 +98,7 @@ class BruteForce:
                         if is_pseudoprime(q):
                             sys.stderr.write('!')
                             sys.stderr.flush()
-                            if is_pseudoprime(r):
+                            if is_prime(r) and is_prime(p) and is_prime(q):
                                 yield (p, q, r, rdesc, x)
 
         sys.stderr.write('<')
