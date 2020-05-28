@@ -64,23 +64,20 @@ class BruteForce:
                 rdesc = ("x^4 + 3", "x^4 - 3*x^2 + 3")[i]
                 try:
                     if i == 0:
-                        ## We choose k a little smaller than j and filter out values that don't achieve the required 2-adicity.
-                        k = j
-                        X2 = sqrt(-1 / Mod(2^(4*k - 1) * A^4, self.pow3))
+                        X2 = sqrt(-1 / Mod(2^(4*j - 1) * A^4, self.pow3))
                     else:
                         # Quadratic formula: <http://www.theochem.ru.nl/~pwormer/Knowino/knowino.org/wiki/Quadratic_equation/Advanced.html>
-                        # j must be odd
-                        k = (j//2)*2 + 1
-                        X2 = (3*2^(k-1) + sqrt(Mod(9*2^(2*k - 2) - 2^(4*k + 1), self.pow3))) / 2^(4*k)
+                        # The other solution to the quadratic, X2 = 2 / Mod(4^j * A^2, self.pow3), never works out in practice.
+                        X2 = 1 / Mod(4^j * A^2, self.pow3)
                 except ZeroDivisionError:
                     continue
                 if not X2.is_square():
                     continue
+                assert(sqrt(X2)^4 == X2^2)
                 X = int(sqrt(X2))
-                x = (A * X) << k
+                x = (A * X) << j
 
-                # p is less likely to be prime than r, so check p first.
-                #print("i = %d, k = %d, A = %s, X = %s, x = %s = %s = %d (mod 3)" % (i, k, format_int(A), format_int(X, 2), format_int(x, 2), format_int(x, 3), x%3))
+                #print("i = %d, j = %d, A = %s, X = %s, x = %s = %s = %d (mod 3)" % (i, j, format_int(A), format_int(X, 2), format_int(x, 2), format_int(x, 3), x%3))
                 if x % 3 == 1:
                     q = x^4 - x^2 + 1
                     if q < 2^L or q % self.pow2 != 1:
@@ -92,14 +89,12 @@ class BruteForce:
                     r = x^4 + 3
                     if i == 1:
                         r = r - 3*x^2
-                    if r % self.pow3 == 1 and is_pseudoprime(p):
+                    # p is less likely to be prime than r, so check p first.
+                    if r % self.pow3 == 1 and is_pseudoprime(p) and is_pseudoprime(q):
                         sys.stderr.write('.')
                         sys.stderr.flush()
-                        if is_pseudoprime(q):
-                            sys.stderr.write('!')
-                            sys.stderr.flush()
-                            if is_prime(r) and is_prime(p) and is_prime(q):
-                                yield (p, q, r, rdesc, x)
+                        if is_prime(r) and is_prime(p) and is_prime(q):
+                            yield (p, q, r, rdesc, x)
 
         sys.stderr.write('<')
         sys.stderr.flush()
@@ -107,7 +102,7 @@ class BruteForce:
 def find_nice_curves(*args):
     (strategy, wid, processes) = args
     for (p, q, r, rdesc, x) in strategy.run(wid, processes):
-        sys.stderr.write('#')
+        sys.stderr.write('@')
         sys.stderr.flush()
 
         #print("\nx = %s\np = %s\nq = %s\nr = %s\n  = %s" % (format_int(x, 2), format_int(p), format_int(q, 2), format_int(r, 3), rdesc))
