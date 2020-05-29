@@ -16,6 +16,11 @@ COEFFICIENT_RANGE = range(2, 1000)
 TWIST_SECURITY = 0
 REQUIRE_PRIMITIVE = False
 
+# Formulae to allow for r:
+#   0: x^4 + 3
+#   1: x^4 - 3*x^2 + 3
+FORMULAE_FOR_r = (0, 1)
+
 
 # Let x = 2^j.A.X.
 #
@@ -43,65 +48,83 @@ class BruteForce:
         j = (twoadicity+1)//2
         threeadicity = int(ceil(twoadicity*log(2, 3)))
 
-        Alen = (L+3)//4 - j - twoadicity
+        Alen = (L+3)//4 - j - twoadicity - 1
         Abase = 1 << Alen
-        Aend = Abase * 64
+        Aend = Abase * 128
 
         self.pow2 = 2^twoadicity
-        self.pow3 = 3^threeadicity
-        self.params = (Abase, Aend, j, L)
+        self.params = (Abase, Aend, j, threeadicity, L)
 
         print("Alen = %d, 2-adicity = %d, 3-adicity = %d" % (Alen, twoadicity, threeadicity))
 
     def run(self, wid, processes):
-        (Abase, Aend, j, L) = self.params
+        (Abase, Aend, j, threeadicity, L) = self.params
 
         # Align Abase for this worker.
-        Abase = ((Abase+processes-1) // processes)*processes + wid
+        # Fine-grained striping of the space across workers doesn't work too well; if the number
+        # of processes is 12, say, then some processes would have many fewer candidates and would
+        # terminate early.
+        stripesize = 257  # should be prime and not too small
+        chunksize = stripesize*processes
+        Abase = ((Abase+chunksize-1) // chunksize)*chunksize + wid*stripesize
+        minx = int(2^(L/4.0))
 
-        for A in range(Abase, Aend, processes):
-            for i in range(2):
-                rdesc = ("x^4 + 3", "x^4 - 3*x^2 + 3")[i]
-                try:
-                    if i == 0:
-                        X2 = sqrt(-1 / Mod(2^(4*j - 1) * A^4, self.pow3))
-                    else:
-                        # Quadratic formula: <http://www.theochem.ru.nl/~pwormer/Knowino/knowino.org/wiki/Quadratic_equation/Advanced.html>
-                        # The other solution to the quadratic, X2 = 2 / Mod(4^j * A^2, self.pow3), never works out in practice.
-                        X2 = 1 / Mod(4^j * A^2, self.pow3)
-                except ZeroDivisionError:
+        for Astripe in range(Abase, Aend, chunksize):
+            for A in range(Astripe, Astripe + stripesize):
+                # If A is 0 (mod 3) then x can't be 1 (mod 3).
+                if A % 3 == 0:
                     continue
-                if not X2.is_square():
-                    continue
-                assert(sqrt(X2)^4 == X2^2)
-                X = int(sqrt(X2))
-                x = (A * X) << j
 
-                #print("i = %d, j = %d, A = %s, X = %s, x = %s = %s = %d (mod 3)" % (i, j, format_int(A), format_int(X, 2), format_int(x, 2), format_int(x, 3), x%3))
-                if x % 3 == 1:
-                    q = x^4 - x^2 + 1
-                    if q < 2^L or q % self.pow2 != 1:
-                        continue
-                    #print("q = %s, A = %d, i = %d, len nope = %r, pow2 nope = %r" % (format_int(q, 2), A, i, q < 2^L, q % self.pow2 != 1))
-                    assert(q % self.pow2 == 1)
-                    assert((q*(x-1)^2) % 3 == 0)
-                    p = x + (q*(x-1)^2)//3
-                    r = x^4 + 3
-                    if i == 1:
-                        r = r - 3*x^2
-                    # p is less likely to be prime than r, so check p first.
-                    if r % self.pow3 == 1 and is_pseudoprime(p) and is_pseudoprime(q):
-                        sys.stderr.write('.')
-                        sys.stderr.flush()
-                        if is_prime(r) and is_prime(p) and is_prime(q):
-                            yield (p, q, r, rdesc, x)
+                for k in range(threeadicity, threeadicity+3):
+                    pow3 = 3^k
+
+                    for i in FORMULAE_FOR_r:
+                        rdesc = ("x^4 + 3", "x^4 - 3*x^2 + 3")[i]
+                        try:
+                            if i == 0:
+                                X2 = sqrt(-1 / Mod(2^(4*j - 1) * A^4, pow3))
+                            else:
+                                # Quadratic formula: <http://www.theochem.ru.nl/~pwormer/Knowino/knowino.org/wiki/Quadratic_equation/Advanced.html>
+                                # The other solution to the quadratic, X2 = 2 / Mod(4^j * A^2, self.pow3), never works out in practice.
+                                X2 = 1 / Mod(4^j * A^2, pow3)
+                        except ZeroDivisionError:
+                            continue
+                        if not X2.is_square():
+                            continue
+                        assert(sqrt(X2)^4 == X2^2)
+                        X = int(sqrt(X2))
+                        x = (A * X) << j
+
+                        #print("i = %d, j = %d, A = %s, X = %s, x = %s = %s = %d (mod 3)" % (i, j, format_int(A), format_int(X, 2), format_int(x, 2), format_int(x, 3), x%3))
+                        if x < minx or x % 3 != 1:
+                            continue
+
+                        q = x^4 - x^2 + 1
+                        if q < 2^L or q % self.pow2 != 1:
+                            continue
+                        #print("q = %s, A = %d, i = %d, len nope = %r, pow2 nope = %r" % (format_int(q, 2), A, i, q < 2^L, q % self.pow2 != 1))
+
+                        r = x^4 + 3
+                        if i == 1:
+                            r = r - 3*x^2
+                        if r % pow3 != 1:
+                            continue
+
+                        assert((q*(x-1)^2) % 3 == 0)
+                        p = x + (q*(x-1)^2)//3
+                        # p is less likely to be prime than q or r, so check p first.
+                        if is_pseudoprime(p) and is_pseudoprime(q):
+                            sys.stderr.write('.')
+                            sys.stderr.flush()
+                            if is_prime(r) and is_prime(p) and is_prime(q):
+                                yield (x, A, X, j, p, q, r, rdesc)
 
         sys.stderr.write('<')
         sys.stderr.flush()
 
 def find_nice_curves(*args):
     (strategy, wid, processes) = args
-    for (p, q, r, rdesc, x) in strategy.run(wid, processes):
+    for (x, A, X, j, p, q, r, rdesc) in strategy.run(wid, processes):
         sys.stderr.write('@')
         sys.stderr.flush()
 
@@ -152,7 +175,7 @@ def find_nice_curves(*args):
         twembeddivq = (2*q + 1 - r)/twembedq
         twembeddivr = (2*r + 1 - q)/twembedr
 
-        yield (x, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
+        yield (x, A, X, j, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
                embedp, embeddivq, embeddivr, twembeddivq, twembeddivr)
 
 def endo(E, zeta, P):
@@ -260,10 +283,11 @@ def worker(*args):
         print_exc()
 
 def real_worker(*args):
-    for (x, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
+    for (x, A, X, j, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
          embedp, embeddivq, embeddivr, twembeddivq, twembeddivr) in find_nice_curves(*args):
         output  = "\n"
         output += "x   = %s\n" % format_int(x, 2)
+        output += "    = %d * %d * 2^%d\n" % (A, X, j)
         output += "p   = %s\n" % format_int(p)
         output += "q   = %s\n" % format_int(q, 2)
         output += "r   = %s\n" % format_int(r, 3)
