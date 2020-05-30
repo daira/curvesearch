@@ -22,109 +22,94 @@ REQUIRE_PRIMITIVE = False
 FORMULAE_FOR_r = (0, 1)
 
 
-# Let x = 2^j.A.X.
+# Let x = 2^j.X.
 #
 # We want:
-#   x^4 - x^2 + 1 ~ L bits, so A.X ~ L/4 - j bits.
+#   x^4 - x^2 + 1 ~ L bits, so X ~ L/4 - j bits.
 #   x^4 - x^2 + 1 = 1 (mod 2^twoadicity)
 #   x^4 + 3       = 1 (mod 3^threeadicity)
 #
-# So 2^{4j}.A^4.X^4 + 3 = 1 (mod 3^threeadicity)
-#    2.(2^{4j-1}.A^4.X^4 + 1) = 0 (mod 3)
-#       2^{4j-1}.A^4.X^4 + 1  = 0 (mod 3)
+# So
+#        2^{4j}.X^4 + 3  = 1 (mod 3^threeadicity)
+#   2.(2^{4j-1}.X^4 + 1) = 0 (mod 3)
+#      2^{4j-1}.X^4 + 1  = 0 (mod 3)
 #
-# Therefore X^4 = -1 / (2^{4j-1}.A^4) (mod 3^threeadicity).
-#
-# This has a solution for X with probability around 1/4. If it does, X is
-# heuristically about the same length as 3^threeadicity (although it may
-# be shorter), and so we have approximately A ~ L/4 - j - twoadicity bits.
+# Therefore X^4 = -1 / 2^{4j-1} (mod 3^threeadicity).
+# We find all solutions for X (mod 3^threeadicity) and use them in the search.
 #
 # There is another case x^4 - 3*x^2 + 3 = 1 (mod 3^adicity) which can be
 # handled in a similar way, but requires use of the quadratic formula to
-# solve for X.
+# solve for X (mod 3^threeadicity).
 
 class BruteForce:
     def __init__(self, L, twoadicity):
         j = (twoadicity+1)//2
         threeadicity = int(ceil(twoadicity*log(2, 3)))
+        pow3 = 3^threeadicity
 
-        Alen = (L+3)//4 - j - twoadicity - 1
-        Abase = 1 << Alen
-        Aend = Abase * 128
+        Xbase = int(2^(L/4.0 - j))
+        Xend = Xbase * 128
+
+        X_0 = [int(X_) for X_ in (-1 / Mod(2^(4*j - 1), pow3)).nth_root(4, all=True)]
+        assert(len(X_0) > 0)
+
+        X_1 = [int(X_) for X_ in sum([(i / Mod(4^j, pow3)).nth_root(2, all=True) for i in (1, 2)], [])]
+        assert(len(X_1) > 0)
+
+        Xoffsets = (X_0, X_1)
+        #print(Xbase, Xoffsets)
 
         self.pow2 = 2^twoadicity
-        self.params = (Abase, Aend, j, threeadicity, L)
+        self.params = (Xbase, Xend, Xoffsets, j, pow3, L)
 
-        print("Alen = %d, 2-adicity = %d, 3-adicity = %d" % (Alen, twoadicity, threeadicity))
+        print("Xbase = %s, 2-adicity = %d, 3-adicity = %d" % (format_int(Xbase, 2), twoadicity, threeadicity))
 
     def run(self, wid, processes):
-        (Abase, Aend, j, threeadicity, L) = self.params
+        (Xbase, Xend, Xoffsets, j, pow3, L) = self.params
 
-        # Align Abase for this worker.
-        # Fine-grained striping of the space across workers doesn't work too well; if the number
-        # of processes is 12, say, then some processes would have many fewer candidates and would
-        # terminate early.
-        stripesize = 257  # should be prime and not too small
-        chunksize = stripesize*processes
-        Abase = ((Abase+chunksize-1) // chunksize)*chunksize + wid*stripesize
-        minx = int(2^(L/4.0))
+        # Align Xbase for this worker.
+        chunksize = pow3*processes
+        Xbase = ((Xbase+chunksize-1) // chunksize)*chunksize + wid*pow3
 
-        for Astripe in range(Abase, Aend, chunksize):
-            for A in range(Astripe, Astripe + stripesize):
-                # If A is 0 (mod 3) then x can't be 1 (mod 3).
-                if A % 3 == 0:
-                    continue
+        for Xchunk in range(Xbase, Xend, chunksize):
+            for i in FORMULAE_FOR_r:
+                rdesc = ("x^4 + 3", "x^4 - 3*x^2 + 3")[i]
+                for Xoffset in Xoffsets[i]:
+                    X = Xchunk + Xoffset
+                    #print("X = %s" % (format_int(X, 3),))
+                    x = X << j
 
-                for k in range(threeadicity, threeadicity+3):
-                    pow3 = 3^k
+                    #print("i = %d, j = %d, A = %s, X = %s, x = %s = %s = %d (mod 3)" % (i, j, format_int(A), format_int(X, 2), format_int(x, 2), format_int(x, 3), x%3))
+                    if x % 3 != 1:
+                        x = x << 1
+                        assert(x % 3 == 1)
 
-                    for i in FORMULAE_FOR_r:
-                        rdesc = ("x^4 + 3", "x^4 - 3*x^2 + 3")[i]
-                        try:
-                            if i == 0:
-                                X2 = sqrt(-1 / Mod(2^(4*j - 1) * A^4, pow3))
-                            else:
-                                # Quadratic formula: <http://www.theochem.ru.nl/~pwormer/Knowino/knowino.org/wiki/Quadratic_equation/Advanced.html>
-                                # The other solution to the quadratic, X2 = 2 / Mod(4^j * A^2, self.pow3), never works out in practice.
-                                X2 = 1 / Mod(4^j * A^2, pow3)
-                        except ZeroDivisionError:
-                            continue
-                        if not X2.is_square():
-                            continue
-                        assert(sqrt(X2)^4 == X2^2)
-                        X = int(sqrt(X2))
-                        x = (A * X) << j
+                    q = x^4 - x^2 + 1
+                    if q < 2^L or q % self.pow2 != 1:
+                        continue
+                    #print("q = %s, i = %d, len nope = %r, pow2 nope = %r" % (format_int(q, 2), i, q < 2^L, q % self.pow2 != 1))
 
-                        #print("i = %d, j = %d, A = %s, X = %s, x = %s = %s = %d (mod 3)" % (i, j, format_int(A), format_int(X, 2), format_int(x, 2), format_int(x, 3), x%3))
-                        if x < minx or x % 3 != 1:
-                            continue
+                    r = x^4 + 3
+                    if i == 1:
+                        r = r - 3*x^2
+                    if r % pow3 != 1:
+                        continue
 
-                        q = x^4 - x^2 + 1
-                        if q < 2^L or q % self.pow2 != 1:
-                            continue
-                        #print("q = %s, A = %d, i = %d, len nope = %r, pow2 nope = %r" % (format_int(q, 2), A, i, q < 2^L, q % self.pow2 != 1))
-
-                        r = x^4 + 3
-                        if i == 1:
-                            r = r - 3*x^2
-                        if r % pow3 != 1:
-                            continue
-
-                        assert((q*(x-1)^2) % 3 == 0)
-                        p = x + (q*(x-1)^2)//3
-                        # p is less likely to be prime than q or r, so check p first.
-                        if is_pseudoprime(p) and is_pseudoprime(q):
-                            sys.stderr.write('.')
-                            sys.stderr.flush()
-                            if is_prime(r) and is_prime(p) and is_prime(q):
-                                yield (x, A, X, j, p, q, r, rdesc)
+                    assert((q*(x-1)^2) % 3 == 0)
+                    p = x + (q*(x-1)^2)//3
+                    # p is less likely to be prime than q or r, so check p first.
+                    if is_pseudoprime(p) and is_pseudoprime(q):
+                        sys.stderr.write('.')
+                        sys.stderr.flush()
+                        if is_prime(r) and is_prime(p) and is_prime(q):
+                            yield (x, X, j, p, q, r, rdesc)
 
         sys.stderr.write('<')
         sys.stderr.flush()
 
 def find_nice_curves(*args):
     (strategy, wid, processes) = args
-    for (x, A, X, j, p, q, r, rdesc) in strategy.run(wid, processes):
+    for (x, X, j, p, q, r, rdesc) in strategy.run(wid, processes):
         sys.stderr.write('@')
         sys.stderr.flush()
 
@@ -175,7 +160,7 @@ def find_nice_curves(*args):
         twembeddivq = (2*q + 1 - r)/twembedq
         twembeddivr = (2*r + 1 - q)/twembedr
 
-        yield (x, A, X, j, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
+        yield (x, X, j, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
                embedp, embeddivq, embeddivr, twembeddivq, twembeddivr)
 
 def endo(E, zeta, P):
@@ -283,11 +268,11 @@ def worker(*args):
         print_exc()
 
 def real_worker(*args):
-    for (x, A, X, j, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
+    for (x, X, j, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
          embedp, embeddivq, embeddivr, twembeddivq, twembeddivr) in find_nice_curves(*args):
         output  = "\n"
         output += "x   = %s\n" % format_int(x, 2)
-        output += "    = %d * %d * 2^%d\n" % (A, X, j)
+        output += "    = %d * 2^%d\n" % (X, j)
         output += "p   = %s\n" % format_int(p)
         output += "q   = %s\n" % format_int(q, 2)
         output += "r   = %s\n" % format_int(r, 3)
