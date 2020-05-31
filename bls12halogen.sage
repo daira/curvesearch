@@ -45,6 +45,7 @@ class BruteForce:
     def __init__(self, L, twoadicity):
         j = (twoadicity+1)//2
         threeadicity = int(ceil(twoadicity*log(2, 3)))
+        pow2 = 2^twoadicity
         pow3 = 3^threeadicity
 
         Xbase = int(2^(L/4.0 - j))
@@ -59,13 +60,12 @@ class BruteForce:
         Xoffsets = (X_0, X_1)
         #print(Xbase, Xoffsets)
 
-        self.pow2 = 2^twoadicity
-        self.params = (Xbase, Xend, Xoffsets, j, pow3, L)
+        self.params = (Xbase, Xend, Xoffsets, j, pow2, pow3, L)
 
         print("Xbase = %s, 2-adicity = %d, 3-adicity = %d" % (format_int(Xbase, 2), twoadicity, threeadicity))
 
     def run(self, wid, processes):
-        (Xbase, Xend, Xoffsets, j, pow3, L) = self.params
+        (Xbase, Xend, Xoffsets, j, pow2, pow3, L) = self.params
 
         # Align Xbase for this worker.
         chunksize = pow3*processes
@@ -75,19 +75,17 @@ class BruteForce:
             for i in FORMULAE_FOR_r:
                 rdesc = ("x^4 + 3", "x^4 - 3*x^2 + 3")[i]
                 for Xoffset in Xoffsets[i]:
-                    X = Xchunk + Xoffset
-                    #print("X = %s" % (format_int(X, 3),))
-                    x = X << j
+                    x = (Xchunk + Xoffset) << j
 
-                    #print("i = %d, j = %d, A = %s, X = %s, x = %s = %s = %d (mod 3)" % (i, j, format_int(A), format_int(X, 2), format_int(x, 2), format_int(x, 3), x%3))
+                    #print("i = %d, j = %d, x = %s = %s = %d (mod 3)" % (i, j, format_int(x, 2), format_int(x, 3), x%3))
                     if x % 3 != 1:
                         x = x << 1
                         assert(x % 3 == 1)
 
                     q = x^4 - x^2 + 1
-                    if q < 2^L or q % self.pow2 != 1:
+                    if q < 2^L or q % pow2 != 1:
                         continue
-                    #print("q = %s, i = %d, len nope = %r, pow2 nope = %r" % (format_int(q, 2), i, q < 2^L, q % self.pow2 != 1))
+                    #print("q = %s, i = %d, len nope = %r, pow2 nope = %r" % (format_int(q, 2), i, q < 2^L, q % pow2 != 1))
 
                     r = x^4 + 3
                     if i == 1:
@@ -102,14 +100,14 @@ class BruteForce:
                         sys.stderr.write('.')
                         sys.stderr.flush()
                         if is_prime(r) and is_prime(p) and is_prime(q):
-                            yield (x, X, j, p, q, r, rdesc)
+                            yield (x, p, q, r, rdesc)
 
         sys.stderr.write('<')
         sys.stderr.flush()
 
 def find_nice_curves(*args):
     (strategy, wid, processes) = args
-    for (x, X, j, p, q, r, rdesc) in strategy.run(wid, processes):
+    for (x, p, q, r, rdesc) in strategy.run(wid, processes):
         sys.stderr.write('@')
         sys.stderr.flush()
 
@@ -160,7 +158,7 @@ def find_nice_curves(*args):
         twembeddivq = (2*q + 1 - r)/twembedq
         twembeddivr = (2*r + 1 - q)/twembedr
 
-        yield (x, X, j, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
+        yield (x, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
                embedp, embeddivq, embeddivr, twembeddivq, twembeddivr)
 
 def endo(E, zeta, P):
@@ -173,7 +171,6 @@ def find_curve(size, order):
         E = EllipticCurve(GF(size), [0, b])
         points = E.count_points()
         set_points.add(points)
-        #print(E, points, len(set_points))
         if points == order:
             return (E, b)
         if len(set_points) == 6:
@@ -268,11 +265,10 @@ def worker(*args):
         print_exc()
 
 def real_worker(*args):
-    for (x, X, j, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
+    for (x, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
          embedp, embeddivq, embeddivr, twembeddivq, twembeddivr) in find_nice_curves(*args):
         output  = "\n"
         output += "x   = %s\n" % format_int(x, 2)
-        output += "    = %d * 2^%d\n" % (X, j)
         output += "p   = %s\n" % format_int(p)
         output += "q   = %s\n" % format_int(q, 2)
         output += "r   = %s\n" % format_int(r, 3)
@@ -287,8 +283,8 @@ def real_worker(*args):
         output += "gcd(q-1, %d) = 1\n" % find_lowest_prime(q)
         output += "gcd(r-1, %d) = 1\n" % find_lowest_prime(r)
 
-        #output += "%d is %ssquare and %sprimitive in Fq\n" % (bq, "" if Mod(bq, q).is_square() else "non", "" if primq else "non")
-        #output += "%d is %ssquare and %sprimitive in Fr\n" % (br, "" if Mod(br, r).is_square() else "non", "" if primp else "non")
+        output += "%d is %ssquare and %sprimitive in Fq\n" % (bq, "" if Mod(bq, q).is_square() else "non", "" if primq else "non")
+        output += "%d is %ssquare and %sprimitive in Fr\n" % (br, "" if Mod(br, r).is_square() else "non", "" if primr else "non")
 
         output += "Ep Pollard security = %.1f, embedding degree = %d\n" % (secp, embedp)
         output += "Eq Pollard security = %.1f, embedding degree = (r-1)/%d\n" % (secq, embeddivq)
