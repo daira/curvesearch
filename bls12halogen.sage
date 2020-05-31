@@ -31,13 +31,13 @@ FORMULAE_FOR_r = (0, 1)
 #
 # So
 #        2^{4j}.X^4 + 3  = 1 (mod 3^threeadicity)
-#   2.(2^{4j-1}.X^4 + 1) = 0 (mod 3)
-#      2^{4j-1}.X^4 + 1  = 0 (mod 3)
+#   2.(2^{4j-1}.X^4 + 1) = 0 (mod ")
+#      2^{4j-1}.X^4 + 1  = 0 (mod ")
 #
 # Therefore X^4 = -1 / 2^{4j-1} (mod 3^threeadicity).
 # We find all solutions for X (mod 3^threeadicity) and use them in the search.
 #
-# There is another case x^4 - 3*x^2 + 3 = 1 (mod 3^adicity) which can be
+# There is another case x^4 - 3*x^2 + 3 = 1 (mod 3^threeadicity) which can be
 # handled in a similar way, but requires use of the quadratic formula to
 # solve for X (mod 3^threeadicity).
 
@@ -93,8 +93,9 @@ class BruteForce:
                     if r % pow3 != 1:
                         continue
 
-                    assert((q*(x-1)^2) % 3 == 0)
-                    p = x + (q*(x-1)^2)//3
+                    q_xm1sq = q*(x-1)^2
+                    assert(q_xm1sq % 3 == 0)
+                    p = x + q_xm1sq//3
                     # p is less likely to be prime than q or r, so check p first.
                     if is_pseudoprime(p) and is_pseudoprime(q):
                         sys.stderr.write('.')
