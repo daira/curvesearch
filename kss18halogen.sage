@@ -94,8 +94,10 @@ class BruteForce:
                 x = Mod(X << j, pow3)
                 r = int(343*x^6 + u*x^3 + v)
                 q = int(343*x^6 + 37*x^3 + 1)
+                z = Mod(7*(X << j), pow3*7)
+                p21 = int(z^8 + 5*z^7 + 7*z^6 + 37*z^5 + 188*z^4 + 259*z^3 + 343*z^2 + 1763*z + 2401) % 21
                 assert r % pow3 == 1, r
-                if gcd(r, pow3) != 1 or gcd(q, pow3) != 1:
+                if gcd(r, pow3) != 1 or gcd(q, pow3) != 1 or p21 != 0:
                     del Xoffsets[i]
 
         print("Xbase = %s, 2-adicity = %d, 3-adicity = %d" % (format_int(Xbase, 2), twoadicity, threeadicity))
@@ -116,13 +118,10 @@ class BruteForce:
                 for Xoffset in Xoffsets:
                     x = (Xchunk + Xoffset) << j
 
-                    #print("i = %d, j = %d, x = %s = %s = %d (mod 3)" % (i, j, format_int(x, 2), format_int(x, 3), x%3))
-
                     q = 343*x^6 + 37*x^3 + 1
                     if q < 2^L or q % pow2 != 1:
                         print("q = %s" % (format_int(q, 2),))
                         continue
-                    #print("q = %s, i = %d, len nope = %r, pow2 nope = %r" % (format_int(q, 2), i, q < 2^L, q % pow2 != 1))
 
                     r = 343*x^6 + u*x^3 + v
                     if r % pow3 != 1:
@@ -132,11 +131,11 @@ class BruteForce:
                     z = 7*x
                     p21 = z^8 + 5*z^7 + 7*z^6 + 37*z^5 + 188*z^4 + 259*z^3 + 343*z^2 + 1763*z + 2401
                     if p21 % 21 != 0:
-                        #print("p")
+                        print("p = %s" % (format_int(p),))
                         continue
                     p = p21//21
+
                     # p is less likely to be prime than q or r, so check p first.
-                    #print(p%3)
                     if is_pseudoprime(p) and is_pseudoprime(q):
                         sys.stderr.write('.')
                         sys.stderr.flush()
