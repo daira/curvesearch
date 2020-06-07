@@ -3,7 +3,7 @@ import sys
 from multiprocessing import Pool, cpu_count
 from traceback import print_exc
 from math import ceil
-from itertools import takewhile
+from itertools import takewhile, starmap
 
 if sys.version_info[0] == 2: range = xrange
 
@@ -47,7 +47,7 @@ class BruteForce:
         Xbase = int(2^((L - lg343)/6.0 - j))
         Xend = Xbase * 128
 
-        solutions = (
+        solutions = [
             (54, 3, #    343*x^6          + 54*x^3          + 3  = q + 1 + T
                     #                                            = 1 (mod 3^threeadicity)
                     # 2*(343*2^{6j-1}*X^6 + 54*2^{3j-1}*X^3 + 1) = 0 (mod ")
@@ -87,18 +87,21 @@ class BruteForce:
                     #
                     solveSextic(343*2^(6*j-1), 57*2^(3*j-1), 1, pow3)
             ),
-        )
+        ]
 
-        for (u, v, Xoffsets) in solutions:
-            for (i, X) in enumerate(Xoffsets):
+        def filter_solution(u, v, Xoffsets):
+            def check_solution(X):
                 x = Mod(X << j, pow3)
                 r = int(343*x^6 + u*x^3 + v)
                 q = int(343*x^6 + 37*x^3 + 1)
                 z = Mod(7*(X << j), pow3*7)
                 p21 = int(z^8 + 5*z^7 + 7*z^6 + 37*z^5 + 188*z^4 + 259*z^3 + 343*z^2 + 1763*z + 2401) % 21
                 assert r % pow3 == 1, r
-                if gcd(r, pow3) != 1 or gcd(q, pow3) != 1 or p21 != 0:
-                    del Xoffsets[i]
+                return gcd(r, pow3) == 1 and gcd(q, pow3) == 1 and p21 == 0
+
+            return (u, v, filter(check_solution, Xoffsets))
+
+        solutions = list(starmap(filter_solution, solutions))
 
         print("Xbase = %s, 2-adicity = %d, 3-adicity = %d" % (format_int(Xbase, 2), twoadicity, threeadicity))
         print("solutions = %r" % (solutions,))
