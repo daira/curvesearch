@@ -5,7 +5,14 @@ from traceback import print_exc
 from math import ceil
 from itertools import takewhile
 
-if sys.version_info[0] == 2: range = xrange
+# Avoid limitations of builtin range.
+def range(x, y=None, step=1):
+    if y is None:
+        (x, y) = (0, x)
+    i = x
+    while i < y:
+        yield i
+        i += step
 
 
 DEFAULT_TWOADICITY = 32
