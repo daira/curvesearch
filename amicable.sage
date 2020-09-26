@@ -98,6 +98,9 @@ def symmetric_range(n, base=0, step=1):
 
 def find_nice_curves(strategy, L, twoadicity, stretch, wid, processes):
     for (p, T, V) in strategy(L, max(0, twoadicity-stretch), wid, processes):
+        if p % (1<<twoadicity) != 1:
+            continue
+
         sys.stdout.write('.')
         sys.stdout.flush()
 
