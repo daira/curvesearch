@@ -61,17 +61,17 @@ def low_hamming_order(L, twoadicity, wid, processes):
     for w in range(wid, Tlen-trailing_zeros, processes):
         for Vc in combinations(range(trailing_zeros, Vlen), w):
             V = Vbase + sum([1 << i for i in Vc]) + 1
-            assert(((V-1)/2) % (1<<twoadicity) == 0)
+            assert ((V-1)/2) % (1<<twoadicity) == 0
             for Tw in range(1, w+1):
                 for Tc in combinations(range(trailing_zeros, Tlen), Tw):
                     T = Tbase + sum([1 << i for i in Tc]) + 1
-                    assert(((T-1)/2) % (1<<twoadicity) == 0)
+                    assert ((T-1)/2) % (1<<twoadicity) == 0
                     if T % 6 != 1:
                         continue
                     p4 = 3*V^2 + T^2
-                    assert(p4 % 4 == 0)
+                    assert p4 % 4 == 0
                     p = p4//4
-                    assert(p % (1<<twoadicity) == 1)
+                    assert p % (1<<twoadicity) == 1
                     if p % 6 == 1 and is_pseudoprime(p):
                         yield (p, T, V)
 
@@ -81,19 +81,19 @@ def near_powerof2_order(L, twoadicity, wid, processes):
     Vbase = isqrt((1<<(L+1))//3) >> trailing_zeros
     for Voffset in symmetric_range(100000, base=wid, step=processes):
         V = ((Vbase + Voffset) << trailing_zeros) + 1
-        assert(((V-1)/2) % (1 << twoadicity) == 0)
+        assert ((V-1)/2) % (1 << twoadicity) == 0
         tmp = (1<<(L+1)) - 3*V^2
         if tmp < 0: continue
         Tbase = isqrt(tmp) >> trailing_zeros
         for Toffset in symmetric_range(100000):
             T = ((Tbase + Toffset) << trailing_zeros) + 1
-            assert(((T-1)/2) % (1<<twoadicity) == 0)
+            assert ((T-1)/2) % (1<<twoadicity) == 0
             if T % 6 != 1:
                 continue
             p4 = 3*V^2 + T^2
-            assert(p4 % 4 == 0)
+            assert p4 % 4 == 0
             p = p4//4
-            assert(p % (1<<twoadicity) == 1)
+            assert p % (1<<twoadicity) == 1
             if REQUIRE_HALFZERO and p>>(L//2) != 1<<(L - 1 - L//2):
                 continue
 
@@ -126,9 +126,9 @@ def find_nice_curves(strategy, L, twoadicity, stretch, requireisos, sortpq, twis
                     qdesc = qdesc.translate(SWAP_SIGNS)
 
                 (Ep, bp) = find_curve(p, q)
-                if bp == None: continue
+                if bp is None: continue
                 (Eq, bq) = find_curve(q, p, (bp,))
-                if bq == None: continue
+                if bq is None: continue
 
                 sys.stdout.write('*')
                 sys.stdout.flush()
@@ -148,18 +148,18 @@ def find_nice_curves(strategy, L, twoadicity, stretch, requireisos, sortpq, twis
 
                 zetap = GF(p).zeta(3)
                 zetap = min(zetap, zetap^2)
-                assert(zetap**3 == Mod(1, p))
+                assert zetap^3 == Mod(1, p)
 
                 zetaq = GF(q).zeta(3)
                 P = Ep.gens()[0]
                 zP = endo(Ep, zetap, P)
                 if zP != int(zetaq)*P:
                     zetaq = zetaq^2
-                    assert(zP == int(zetaq)*P)
-                assert(zetaq**3 == Mod(1, q))
+                    assert zP == int(zetaq)*P
+                assert zetaq^3 == Mod(1, q)
 
                 Q = Eq.gens()[0]
-                assert(endo(Eq, zetaq, Q) == int(zetap)*Q)
+                assert endo(Eq, zetaq, Q) == int(zetap)*Q
 
                 embeddivp = (q-1)/embedp
                 embeddivq = (p-1)/embedq
@@ -202,7 +202,7 @@ def twist_security(p, q):
 def embedding_degree(p, r):
     sys.stdout.write('#')
     sys.stdout.flush()
-    assert(gcd(p, r) == 1)
+    assert gcd(p, r) == 1
     Z_q = Integers(r)
     u = Z_q(p)
     d = r-1
@@ -230,7 +230,7 @@ def find_iso(E):
 def format_weight(x, detail=True):
     X = format(abs(x), 'b')
     if detail:
-        assert(X.endswith('1'))
+        assert X.endswith('1')
         detailstr = " (bitlength %d, weight %d, 2-adicity %d)" % (len(X), sum([int(c) for c in X]),
                                                                   len(X) - len(X[:-1].rstrip('0')))
     else:
