@@ -22,6 +22,10 @@ DEFAULT_TWOADICITY = 32
 DEFAULT_STRETCH = 0
 
 COEFFICIENT_RANGE = (5,)
+# TODO: could optimize by observing that b can't be square in the field.
+# (An elliptic curve of the form y^2 = x^3 + b over F_p where b is square in F_p and
+# p is a large prime, always has order a multiple of 3. See Theorems 5.3 and 5.1c
+# in 'Elliptic Curves' by Anthony W. Knapp.)
 #COEFFICIENT_RANGE = range(1, 100)
 
 GCD_PRIMES = (5, 7, 11, 13, 17)
@@ -308,8 +312,8 @@ def real_worker(*args):
         output += "gcd(p-1, α) = 1 for α ∊ {%s}\n" % (", ".join(map(str, find_gcd_primes(p))),)
         output += "gcd(q-1, α) = 1 for α ∊ {%s}\n" % (", ".join(map(str, find_gcd_primes(q))),)
 
-        output += "%d is %ssquare and %sprimitive in Fp\n" % (bp, "" if Mod(bp, p).is_square() else "non", "" if primp else "non")
-        output += "%d is %ssquare and %sprimitive in Fq\n" % (bq, "" if Mod(bq, q).is_square() else "non", "" if primq else "non")
+        output += "%d is %sprimitive in Fp\n" % (bp, "" if primp else "non")
+        output += "%d is %sprimitive in Fq\n" % (bq, "" if primq else "non")
 
         output += "Ep security = %.1f, embedding degree = (q-1)/%d\n" % (secp, embeddivp)
         output += "Eq security = %.1f, embedding degree = (p-1)/%d\n" % (secq, embeddivq)
