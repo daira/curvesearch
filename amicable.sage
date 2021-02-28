@@ -318,11 +318,11 @@ def real_worker(*args):
         output += "%d is %sprimitive in Fp\n" % (bp, "" if primp else "non")
         output += "%d is %sprimitive in Fq\n" % (bq, "" if primq else "non")
 
-        output += "Ep security = %.1f, embedding degree = (q-1)/%d\n" % (secp, embeddivp)
-        output += "Eq security = %.1f, embedding degree = (p-1)/%d\n" % (secq, embeddivq)
+        output += "Ep rho security = %.1f, embedding degree = (q-1)/%d\n" % (secp, embeddivp)
+        output += "Eq rho security = %.1f, embedding degree = (p-1)/%d\n" % (secq, embeddivq)
 
-        output += "Ep twist security = %.1f, embedding degree = (2p + 1 - q)/%d\n" % (twsecp, twembeddivp)
-        output += "Eq twist security = %.1f, embedding degree = (2q + 1 - p)/%d\n" % (twsecq, twembeddivq)
+        output += "Ep twist rho security = %.1f, embedding degree = (2p + 1 - q)/%d\n" % (twsecp, twembeddivp)
+        output += "Eq twist rho security = %.1f, embedding degree = (2q + 1 - p)/%d\n" % (twsecq, twembeddivq)
 
         if iso_Ep is not None:
             output += "iso_Ep = %r\n" % (iso_Ep,)
