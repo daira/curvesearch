@@ -111,7 +111,7 @@ def symmetric_range(n, base=0, step=1):
 
 SWAP_SIGNS = maketrans("+-", "-+")
 
-def find_nice_curves(strategy, L, twoadicity, stretch, requireisos, sortpq, twistsec, wid, processes):
+def find_nice_curves(strategy, L, twoadicity, stretch, requireisos, sortpq, sortqp, twistsec, wid, processes):
     for (p, T, V) in strategy(L, max(0, twoadicity-stretch), wid, processes):
         if p % (1<<twoadicity) != 1:
             continue
@@ -125,7 +125,7 @@ def find_nice_curves(strategy, L, twoadicity, stretch, requireisos, sortpq, twis
                 continue
 
             if q not in (p, p+1, p-1) and q > 1<<(L-1) and q % 6 == 1 and q % (1<<twoadicity) == 1 and is_prime(q) and is_prime(p):
-                if sortpq and q < p:
+                if (sortpq and q < p) or (sortqp and p < q):
                     (p, q) = (q, p)
                     qdesc = qdesc.translate(SWAP_SIGNS)
 
@@ -251,17 +251,20 @@ def main():
         processes -= 2
     requireisos = "--requireisos" in args
     sortpq = "--sortpq" in args
+    sortqp = "--sortqp" in args
     twistsec = 0 if "--ignoretwist" in args else DEFAULT_TWIST_SECURITY
     args = [arg for arg in args if not arg.startswith("--")]
 
     if len(args) < 1:
         print("""
-Usage: sage amicable.sage [--sequential] [--requireisos] [--sortpq] [--ignoretwist] [--nearpowerof2] <min-bitlength> [<min-2adicity> [<stretch]]
+Usage: sage amicable.sage [--sequential] [--requireisos] [--sortpq] [--sortqp] [--ignoretwist] [--nearpowerof2]
+                          <min-bitlength> [<min-2adicity> [<stretch]]
 
 Arguments:
   --sequential     Use only one thread, avoiding non-determinism in the output order.
   --requireisos    Require isogenies useful for a "simplified SWU" hash to curve.
   --sortpq         Sort p smaller than q.
+  --sortqp         Sort q smaller than p.
   --ignoretwist    Ignore twist security.
   --nearpowerof2   Search for primes near a power of 2, rather than with low Hamming weight.
   <min-bitlength>  Both primes should have this minimum bit length.
@@ -279,7 +282,7 @@ Arguments:
 
     try:
         for wid in range(processes):
-            pool.apply_async(worker, (strategy, L, twoadicity, stretch, requireisos, sortpq, twistsec, wid, processes))
+            pool.apply_async(worker, (strategy, L, twoadicity, stretch, requireisos, sortpq, sortqp, twistsec, wid, processes))
 
         while True:
             sleep(1000)
