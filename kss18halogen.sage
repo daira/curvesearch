@@ -182,9 +182,9 @@ def find_nice_curves(*args):
         if REQUIRE_PRIMITIVE and not primr: continue
 
         (twsecq, twembedq) = twist_security(q, r)
-        if twsecq < TWIST_SECURITY: continue
+        if TWIST_SECURITY > 0 and twsecq < TWIST_SECURITY: continue
         (twsecr, twembedr) = twist_security(r, q)
-        if twsecr < TWIST_SECURITY: continue
+        if TWIST_SECURITY > 0 and twsecr < TWIST_SECURITY: continue
 
         (secp, embedp) = curve_security(p, q)
         (secq, embedq) = curve_security(q, r)
@@ -207,8 +207,8 @@ def find_nice_curves(*args):
 
         embeddivq = (r-1)/embedq
         embeddivr = (q-1)/embedr
-        twembeddivq = (2*q + 1 - r)/twembedq
-        twembeddivr = (2*r + 1 - q)/twembedr
+        twembeddivq = None if TWIST_SECURITY == 0 else (2*q + 1 - r)/twembedq
+        twembeddivr = None if TWIST_SECURITY == 0 else (2*r + 1 - q)/twembedr
 
         yield (x, p, q, r, rdesc, bp, bq, br, zetaq, zetar, primq, primr, secp, secq, secr, twsecq, twsecr,
                embedp, embeddivq, embeddivr, twembeddivq, twembeddivr)
@@ -243,6 +243,8 @@ def curve_security(size, order):
     return (log(pi_12 * suborder, 4), embedding_degree(size, suborder))
 
 def twist_security(size, order):
+    if TWIST_SECURITY == 0:
+        return (None, None)
     return curve_security(size, 2*(size+1) - order)
 
 def embedding_degree(size, suborder):
@@ -342,8 +344,9 @@ def real_worker(*args):
         output += "Eq Pollard security = %.1f, embedding degree = (r-1)/%d\n" % (secq, embeddivq)
         output += "Er Pollard security = %.1f, embedding degree = (q-1)/%d\n" % (secr, embeddivr)
 
-        output += "Eq twist Pollard security = %.1f, embedding degree = (2q + 1 - r)/%d\n" % (twsecq, twembeddivq)
-        output += "Er twist Pollard security = %.1f, embedding degree = (2r + 1 - q)/%d\n" % (twsecr, twembeddivr)
+        if TWIST_SECURITY > 0:
+            output += "Eq twist Pollard security = %.1f, embedding degree = (2q + 1 - r)/%d\n" % (twsecq, twembeddivq)
+            output += "Er twist Pollard security = %.1f, embedding degree = (2r + 1 - q)/%d\n" % (twsecr, twembeddivr)
 
         print(output)  # one syscall to minimize tearing
 
